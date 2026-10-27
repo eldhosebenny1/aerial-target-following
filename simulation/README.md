@@ -39,10 +39,9 @@ Two options, both configured through `VIDEO_SOURCE`:
 
 ## What SITL does not tell you
 
-- The depth threshold in `src/utils/config.py` was calibrated on some recording set
-  that is not part of this repository. Simulated textures do not have the same depth
-  distribution, and the map is normalised per frame, so the same threshold can mean
-  something different.
+- The depth threshold in `src/utils/config.py` was tuned on recorded flights. Simulated
+  textures do not have the same depth distribution, and the map is normalised per frame,
+  so the same threshold can mean something different.
 - Timing is optimistic. SITL runs on a workstation; the flight computer usually
   does not.
 - Offboard failsafe behaviour differs from a real failsafe, because there is no

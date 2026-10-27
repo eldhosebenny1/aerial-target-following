@@ -17,8 +17,7 @@
 | `src/utils/gui.py` | OpenCV windows on a background thread | OpenCV |
 
 Only `main.py` wires modules together. The leaf modules take plain numbers and
-arrays, which is why the test suite can exercise them without a drone, a camera or
-the model weights.
+arrays, so they can be exercised without a drone, a camera or model weights.
 
 ## Data shapes
 

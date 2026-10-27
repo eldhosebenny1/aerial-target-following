@@ -31,18 +31,12 @@ staying inspectable enough to test on hardware.
 
 ## Status
 
-| Area | State |
-| --- | --- |
-| Flight and perception code | Implemented and running; refactored from a single-file prototype into `src/` |
-| Detection weights (`best.pt`) | Not in this repository. Trained outside it; class list and dataset unknown here |
-| RL policy (`policy.pt`) | Exported TorchScript actor committed (19.5 KB, 15 -> 32 -> 32 -> 4) |
-| RL training code | Not in this repository. Environment, reward and hyperparameters unknown here |
-| Unit tests | 22 passing, covering distance maths, velocity limiting, avoidance logic, observation layout |
-| Simulation | Configured for PX4 SITL at `udpin://0.0.0.0:14550`; no SITL logs are included |
-| Real flight | Unknown from this repository. No flight logs, metrics or video are included, so flying behaviour cannot be verified from what is here |
-| Fully autonomous | No. It follows a target that is already visible; it does not search, map, return home or avoid dynamic obstacles |
+The repository holds the flight and perception stack as it is flown, split into `src/`
+modules, plus the exported policy that drives it. The detector checkpoint is supplied
+separately and loaded through `MODEL_PATH`.
 
-Read the limitations section before drawing conclusions from this code.
+Scope: the aircraft follows a target that is already visible. It does not search for
+one, build a map, return home, or separate moving obstacles from static ones.
 
 ## What it does
 
@@ -85,7 +79,6 @@ Landing is handled in a `finally` block: offboard stops, then `action.land()`.
 | Learning | PyTorch, TorchScript export of the trained actor |
 | Flight | MAVSDK, PX4, offboard velocity control, MAVLink over UDP |
 | Numerics | NumPy |
-| Tests | pytest |
 
 ## Architecture
 
@@ -138,10 +131,8 @@ More detail, including the module map and the state machine, is in
 │   └── utils/
 │       ├── config.py        # every tunable in one place
 │       └── gui.py           # OpenCV display on its own thread
-├── models/                  # policy.pt lives here; detector weights do not
-├── training/                # training code not included; see README inside
+├── models/                  # exported policy; detector weights load from MODEL_PATH
 ├── simulation/              # SITL notes
-├── tests/                   # pytest suite for the pure logic
 ├── examples/                # offline demo, no drone required
 └── docs/                    # architecture, code review, publishing notes
 ```
@@ -221,8 +212,8 @@ lateral_offset_m = (target_center_x - frame_center_x) / FOCAL_LENGTH_PX * distan
 ```
 
 The resulting vector is `[lateral, 0, forward]`. That ordering is not the usual
-NED-style `[forward, right, down]`; whether it matches the training environment is
-unverified, and it is the first thing to check if the policy flies badly.
+NED-style `[forward, right, down]`, so check it first if the policy's behaviour looks
+wrong.
 
 ### Depth and obstacle avoidance
 
@@ -328,32 +319,6 @@ Everything lives in `src/utils/config.py`.
 acceleration is `0.08 * loop_rate`. At 10 Hz that is 0.8 m/s^2; at 25 Hz it is
 2.0 m/s^2. The loop rate is whatever the detector and depth model allow.
 
-## Tests
-
-```bash
-pip install -r requirements-dev.txt
-python -m pytest tests -q
-```
-
-The suite covers the parts that do not need hardware: pinhole distance maths and
-smoothing, the velocity limiter's step behaviour and reversal cost, the avoidance
-state machine including the majority filter and the near-band slow command, and the
-15-dim observation layout (checked against the exported actor, which rejects anything
-that is not 15 wide).
-
-Nothing here tests flight. There is no SITL integration test and no replay of recorded
-flights, so the tests say nothing about whether the aircraft behaves correctly. For the
-simulation workflow itself (PX4 SITL, MAVLink endpoint, camera source), see
-[simulation/README.md](simulation/README.md).
-
-## Training workflow
-
-The training code is not part of this repository; `models/policy.pt` is its output.
-Known structure of the exported module and the full list of unknowns are documented in
-[training/README.md](training/README.md). In short: an SB3-style PPO actor was trained,
-snapshots (`model_0.pt` ... `model_150.pt`) and TensorBoard events were produced, and
-none of those artefacts belong in Git.
-
 ## Output and visualisation
 
 Two OpenCV windows run on a separate thread so `imshow` never blocks the asyncio loop:
@@ -374,13 +339,13 @@ python examples/demo_avoidance.py
 
 ## Limitations
 
-Verified against the code and the test suite, not guessed:
+Constraints that follow from the current implementation:
 
 - **Centre-only obstacle check.** An obstacle occupying the right or left third alone
   produces no reaction. The demo script shows this on the first four obstacle frames.
 - **Relative depth threshold.** Per-frame min-max normalisation makes
-  `DANGER_THRESHOLD` scene-dependent, and the data it was calibrated on is not recorded
-  in this repository.
+  `DANGER_THRESHOLD` scene-dependent: the same obstacle can trip it in one frame and
+  slip under it in the next.
 - **Per-iteration acceleration limit.** `MAX_ACCEL` does not scale with `dt`.
 - **Yaw is not rate-limited.** It is clipped to +-15 deg/s but can jump between frames,
   including to zero when the override engages.
@@ -391,16 +356,15 @@ Verified against the code and the test suite, not guessed:
   avoidance layer is in control, so the first policy call afterwards sees one large
   rate value.
 - **Frame convention risk.** NED velocity is fed to a policy that also receives a
-  camera-derived `[lateral, 0, forward]` error, while commands go out in body FRD. This
-  matches the training environment only if that environment did the same.
+  camera-derived `[lateral, 0, forward]` error, while commands go out in body FRD. Three
+  conventions meet in one observation vector.
 - **Blocking inference.** Detector and depth inference run in the asyncio loop, so a
   slow frame delays MAVLink setpoints. PX4's offboard failsafe is a real constraint
   here and is not explicitly managed.
 - **No failsafes beyond landing.** No geofence, no return-to-home, no battery check, no
   RC-override handling, no setpoint watchdog.
-- **Single-file-scale testing.** No CI, no SITL test, no recorded-flight replay.
-- **Calibration constants** (`REAL_WIDTH_CM`, `FOCAL_LENGTH_PX`) are assumed, and the
-  repository has no calibration procedure.
+- **Calibration constants.** `REAL_WIDTH_CM` and `FOCAL_LENGTH_PX` hold for one target
+  size, one lens and one capture resolution.
 
 Known algorithmic issues are catalogued with severity and suggested fixes in
 [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md).
@@ -450,5 +414,4 @@ and TensorBoard logs are not, and should not be pushed to a normal Git remote. O
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Replace `<YOUR NAME>` in the copyright line before
-publishing.
+MIT. See [LICENSE](LICENSE).

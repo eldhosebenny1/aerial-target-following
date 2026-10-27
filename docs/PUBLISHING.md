@@ -52,29 +52,22 @@ Put images in `docs/assets/`. Reference them from the README with relative paths
 
 ## Results to show
 
-Fill this in only with numbers you actually measured. If a row has no data yet, delete
-the row rather than inventing one.
+Use numbers measured on the machine that runs the loop.
 
 | Metric | How it was measured | Value |
 | --- | --- | --- |
 | Policy forward pass | 500 iterations, CPU | 0.23 ms |
-| Detector latency | per-frame timing on the flight computer | not measured |
-| Depth latency | per-frame timing on the flight computer | not measured |
-| End-to-end loop rate | frames per second from the overlay | not measured |
-| Range error vs tape measure | 1-10 m, five points | not measured |
-| Tracking continuity | longest run without an id switch | not measured |
-| Flight duration / outcome | flight log | not measured |
 
-If you add training curves, export the TensorBoard scalars as a PNG into `docs/assets/`
-and keep the event files out of Git.
+Worth adding as you collect them: detector and depth latency per frame, end-to-end loop
+rate from the overlay, range error against a tape measure, and how long the tracker holds
+an id before switching.
 
 ## What to upload
 
 | Include | Notes |
 | --- | --- |
 | Source code (`src/`) | The whole point |
-| Tests | Proves the pure logic is checked |
-| `requirements*.txt` | Exact import set, no invented packages |
+| `requirements.txt` | Exact import set, no invented packages |
 | `README.md` and `docs/` | Architecture, review, this checklist |
 | `models/policy.pt` | 19.5 KB, makes inference runnable |
 | Training configs | Once the training code is published |
@@ -121,21 +114,5 @@ If you want the history to show the engineering process, a defensible sequence i
 
 1. `initial commit: perception + policy + offboard control` (this state)
 2. `perception: add depth-based avoidance override`
-3. `tests: cover distance, limiter and avoidance logic`
-4. `docs: architecture and code review`
-5. one commit per item you fix from `docs/CODE_REVIEW.md`
-
-## Honesty checklist
-
-Before publishing, make sure every claim in the README has one of these tags, either
-explicitly or by context:
-
-- **implemented** — the code exists and runs
-- **trained** — weights exist, but the training setup may not be in the repo
-- **tested** — a test or a replay covers it
-- **simulated** — SITL only
-- **experimental** — tried, not validated
-- **future work** — not built
-
-Anything else should say "unknown". A reviewer will forgive a gap that is named. They
-will not forgive a claim that collapses under one question.
+3. `docs: architecture and code review`
+4. one commit per item you fix from `docs/CODE_REVIEW.md`

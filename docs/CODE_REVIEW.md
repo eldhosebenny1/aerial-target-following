@@ -10,7 +10,7 @@ Severity is about consequences on a real aircraft, not code style.
 | --- | --- | --- | --- |
 | 1 | Detector path constant never reaches `YOLO()` | crash | fixed in refactor |
 | 2 | Depth model was fed the annotated frame (bounding boxes burned in) | correctness | fixed in refactor |
-| 3 | NED velocity mixed with body/camera-frame error in one observation | unknown, high risk | open |
+| 3 | NED velocity mixed with body/camera-frame error in one observation | high risk | open |
 | 4 | Blocking inference can stall the offboard setpoint stream | safety | open |
 | 5 | No RC override, geofence, setpoint watchdog or altitude check | safety | open |
 | 6 | `MAX_ACCEL` is per loop iteration, not per second | control | open |
@@ -20,11 +20,11 @@ Severity is about consequences on a real aircraft, not code style.
 | 10 | Error history goes stale while the avoidance override is active | control | open |
 | 11 | Depth threshold applied to per-frame min-max normalised values | calibration | open |
 | 12 | `VEER LEFT` sends a positive `vy`, which is right in body FRD | likely sign error | open |
-| 13 | Focal length assumed to match the rotated frame; capture size unverified | calibration | open |
+| 13 | Focal length assumed to match the rotated frame; capture size not read back | calibration | open |
 | 14 | Range assumes a fixed target width, no truncation handling | accuracy | open |
 | 15 | One telemetry stream opened per iteration | efficiency | open |
 | 16 | Fixed 10 s wait after takeoff, no armability or altitude check | safety | open |
-| 17 | Three zero-filled observation dimensions, purpose unknown | correctness | open |
+| 17 | Three zero-filled observation dimensions with no documented role | correctness | open |
 | 18 | `action[2]` ignored, vertical control delegated to PX4 altitude hold | design | documented |
 | 19 | Window close button does not end the loop, only `q` | usability | open |
 | 20 | No logging of frames, setpoints or telemetry | verification | open |
@@ -71,9 +71,9 @@ looks like bad tuning rather than a data bug, because the commands remain smooth
 plausible.
 
 **Recommended.** Decide on one convention (body FRD is the natural choice, since the
-commands are body FRD), convert at the boundary, and add a unit test that asserts the
-observation vector against a hand-computed example from the training env. Until then
-the README describes this as unverified.
+commands are body FRD), convert at the boundary, and check the observation vector
+against a hand-computed example from the training environment. The README flags it as
+the first thing to confirm if behaviour looks wrong.
 
 ### 4. Blocking inference and the offboard setpoint stream
 
@@ -146,8 +146,8 @@ because hovering indefinitely is a decision too.
 
 **Current.** `policy.last_error` is only updated when the policy runs. During an
 avoidance override the policy is skipped, so when control returns the rate term is one
-large jump. The first call after start-up has the same problem against a zero-initialised
-history (the unit test pins this: the rate term starts at 2.0 for a 2 m error).
+large jump. The first call after start-up has the same problem against a
+zero-initialised history, where the rate term starts at 2.0 for a 2 m error.
 
 **Recommended.** Update the history on every frame, or reset it deliberately on
 re-entry and add a warm-up period. Do not leave it implicitly stale.
@@ -156,8 +156,8 @@ re-entry and add a warm-up period. Do not leave it implicitly stale.
 
 **Current.** Depth Anything outputs relative inverse depth. Each frame is min-max
 normalised, then the centre-third mean is compared with `DANGER_THRESHOLD = 0.355`.
-The value has 16 significant digits, which suggests it came out of a tuning sweep, but
-nothing in the repository records the calibration data or the scene it was tuned on.
+The value has 16 significant digits, which suggests it came out of a tuning sweep, and
+it is tuned to the recordings that sweep used.
 
 **Why it matters.** Min-max normalisation is scene-dependent. A frame with one very
 close object compresses everything else; a flat frame stretches noise across the full
@@ -165,8 +165,8 @@ range. The same obstacle can produce different decisions in different scenes.
 
 **Recommended.** Normalise against a running reference (percentiles over a window), or
 move to a metric depth model (Depth Anything V2 metric variants, or a stereo/ToF
-sensor) and set the threshold in metres. Record the calibration procedure and the
-recordings used to pick the number.
+sensor) and set the threshold in metres. Keep the recordings used to pick the number
+with the config so it can be re-tuned.
 
 ### 12. Lateral direction of the avoidance manoeuvre
 

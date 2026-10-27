@@ -6,7 +6,6 @@ __pycache__/
 build/
 dist/
 *.egg-info/
-.pytest_cache/
 
 # Virtual environments
 .venv/
@@ -42,9 +41,6 @@ logs/
 *.log
 events.out.tfevents.*
 *.tfevents.*
-training/runs/
-training/checkpoints/*
-!training/checkpoints/.gitkeep
 
 # Datasets
 data/

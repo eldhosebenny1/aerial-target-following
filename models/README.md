@@ -31,10 +31,9 @@ control loop builds is documented in the main README; the two must stay in sync.
 
 ## best.pt
 
-A trained detection checkpoint for a single target class, produced outside this
-repository. The class list, dataset, image resolution and training configuration
-are not included, so the numbers in the README cannot be re-derived from the
-code here. Supply your own Ultralytics checkpoint, or point `MODEL_PATH` at one.
+A trained Ultralytics detection checkpoint for a single target class. Drop it in
+`models/` or point `MODEL_PATH` at it. The detector is built from the weights alone, so
+any single-class Ultralytics model loads without a config file.
 
 ## Committing weights
 
