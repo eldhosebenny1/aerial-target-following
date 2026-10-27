@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Editors and IDEs
+.vscode/
+.idea/
+.freebuff/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model weights. The exported policy is small enough to commit; everything else
+# is expected to live in a Release or external storage. See models/README.md.
+*.pt
+*.pth
+*.onnx
+*.engine
+*.tflite
+!models/policy.pt
+
+# Training artefacts
+runs/
+tb_logs/
+tensorboard/
+logs/
+*.log
+events.out.tfevents.*
+*.tfevents.*
+training/runs/
+training/checkpoints/*
+!training/checkpoints/.gitkeep
+
+# Datasets
+data/
+datasets/
+*.zip
+*.tar
+*.tar.gz
+
+# Generated media and captures
+outputs/
+output/
+captures/
+recordings/
+*.avi
+*.mp4
+*.MOV
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+secrets.*
+config.local.*
