@@ -33,7 +33,8 @@ staying inspectable enough to test on hardware.
 
 The repository holds the flight and perception stack as it is flown, split into `src/`
 modules, plus the exported policy that drives it. The detector checkpoint is supplied
-separately and loaded through `MODEL_PATH`.
+separately and loaded through `MODEL_PATH`. `training/isaaclab/` holds the Isaac Lab
+version of the pursuit task used to shape the controller.
 
 Scope: the aircraft follows a target that is already visible. It does not search for
 one, build a map, return home, or separate moving obstacles from static ones.
@@ -77,6 +78,7 @@ Landing is handled in a `finally` block: offboard stops, then `action.land()`.
 | Perception | PyTorch, Ultralytics YOLO, ByteTrack, OpenCV, Pillow |
 | Depth | Depth Anything V2 Small through Hugging Face Transformers |
 | Learning | PyTorch, TorchScript export of the trained actor |
+| Training | Isaac Lab on Isaac Sim, skrl or rl_games PPO |
 | Flight | MAVSDK, PX4, offboard velocity control, MAVLink over UDP |
 | Numerics | NumPy |
 
@@ -132,6 +134,7 @@ More detail, including the module map and the state machine, is in
 │       ├── config.py        # every tunable in one place
 │       └── gui.py           # OpenCV display on its own thread
 ├── models/                  # exported policy; detector weights load from MODEL_PATH
+├── training/                # Isaac Lab pursuit task and install notes
 ├── simulation/              # SITL notes
 ├── examples/                # offline demo, no drone required
 └── docs/                    # architecture, code review, publishing notes
@@ -270,6 +273,46 @@ Measured on this machine (CPU, single sample, 500 iterations), the actor costs a
 model are, by a wide margin. No latency budget for those two is claimed here because
 they were not benchmarked as part of this repository.
 
+## Training in Isaac Lab
+
+The pursuit task used to work out the controller lives in
+[`training/isaaclab/`](training/isaaclab/) as an Isaac Lab `DirectRLEnv`:
+
+- `drone_combat_env.py` steps the physics, builds the observation, scores the reward
+  and resets the pair.
+- `drone_combat_env_cfg.py` holds the scene, the two Crazyflie bodies, the reward
+  scales and the action scale.
+
+It runs 256 parallel copies of a two-aircraft pursuit scene. The ego aircraft has no
+rotor model: the policy outputs a horizontal velocity command and a thrust magnitude,
+and a proportional controller turns those into a force on the root body. The second
+aircraft is not learned, it flies a pursuit rule toward the ego with noise added and
+backs off inside 15 m. Observation is 21 numbers, action is 3, an episode ends when
+the aircraft are within 3 m or after 10 s.
+
+The reward is velocity alignment toward the target, an alive term, distance and energy
+penalties, and three larger terms for staying upright, holding 1.5 m of altitude and
+keeping angular rates down. Those three carry the task: without them the fastest way
+to close the distance is to roll over and thrust sideways.
+
+These files are an Isaac Lab task, not a standalone package. They need Isaac Lab with
+Isaac Sim and an NVIDIA GPU, and nothing in `src/` imports them. To train, copy both
+files into Isaac Lab's built-in drone task at
+`source/isaaclab_tasks/isaaclab_tasks/direct/quadcopter/`, register the task in that
+folder's `__init__.py`, and run the stock `train.py` with
+`--task Isaac-DroneCombat-Direct-v0`. The agent YAML files already in that folder are
+what feed the RL library, so reusing the folder avoids writing them. The other route
+is a fresh project from the Isaac Lab template generator. Both routes, the
+registration block, and the train and play commands are in
+[`training/README.md`](training/README.md).
+
+The checkpoint from this environment is not the actor in `models/`: it produces a
+21-in, 3-out policy, while `policy.pt` is 15-in, 4-out, and on the aircraft the
+horizontal axes are PX4 velocity setpoints rather than simulated forces. The training
+environment is where the reward shaping and the attitude behaviour were developed;
+the exported actor came from a separate run. Moving a policy across that boundary
+means rebuilding the observation on the flight side and re-exporting.
+
 ## Flight control and PX4 integration
 
 `src/control/flight.py` wraps the MAVSDK calls and `src/main.py` owns the sequence:
@@ -384,7 +427,8 @@ Ordered by what would make the project more trustworthy, not by what is most fun
    relative depth, or at least normalise against a running reference.
 5. Add a setpoint watchdog and offboard timeout, an RC override path, and a geofence.
 6. Add lost-target behaviour: search pattern, hover timeout, then land or return.
-7. Publish the training environment and configs so the policy can be retrained.
+7. Align the training observation with the flight observation so a policy can move
+   between them without being rebuilt.
 8. Add a SITL test that runs the loop for a fixed number of iterations against a fake
    MAVSDK backend and asserts the setpoint sequence.
 

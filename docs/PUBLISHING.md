@@ -70,7 +70,7 @@ an id before switching.
 | `requirements.txt` | Exact import set, no invented packages |
 | `README.md` and `docs/` | Architecture, review, this checklist |
 | `models/policy.pt` | 19.5 KB, makes inference runnable |
-| Training configs | Once the training code is published |
+| Training task and config | `training/isaaclab/`, two plain Python files |
 | Small example assets | A short clip extracted as a few PNG frames is fine |
 | Evaluation results | CSV or Markdown tables, plus plots |
 

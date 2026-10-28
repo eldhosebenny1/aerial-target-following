@@ -38,6 +38,7 @@ runs/
 tb_logs/
 tensorboard/
 logs/
+videos/
 *.log
 events.out.tfevents.*
 *.tfevents.*
